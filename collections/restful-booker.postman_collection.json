@@ -1,0 +1,419 @@
+{
+  "info": {
+    "_postman_id": "51d0b012-a3a3-48f4-bcc0-706943eafd14",
+    "name": "restful-booker",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "45342688",
+    "_collection_link": "https://go.postman.co/collection/45342688-51d0b012-a3a3-48f4-bcc0-706943eafd14?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "HealthCheck",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "//Verificar que el SUT responda con el status code 201\r",
+              "pm.test('El SUT esta activo (Status 201)', function () {\r",
+              "    pm.response.to.have.status(201);\r",
+              "});\r",
+              "\r",
+              "//Verificar que el SUT este activo, sino detener las siguientes pruebas\r",
+              "if (pm.response.code !== 201) {\r",
+              "    console.log('El SUT esta fuera de servicio. Abortando...');\r",
+              "    pm.execution.setNextRequest(null);\r",
+              "}\r",
+              "\r",
+              "// Verificar que el body no este vacio\r",
+              "pm.test('El body no está vacío', function () {\r",
+              "    pm.expect(pm.response.text()).to.not.be.empty;\r",
+              "});\r",
+              "\r",
+              "//Verificar que el SUT reponda con 'Created'\r",
+              "pm.test(\"Respuesta contiene 'Created'\", function () {\r",
+              "    pm.expect(pm.response.text()).to.include('Created');\r",
+              "});\r",
+              "\r",
+              "// Verificar el tiempo de respues menor a 2 segundos\r",
+              "pm.test('Tiempo de respuesta aceptable', function () {\r",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000); // Tiempo de respuesta en milisegundos\r",
+              "});\r",
+              "\r",
+              "// Verificar que el content-type sea texto plano\r",
+              "pm.test('Content-Type es texto plano', function () {\r",
+              "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/plain');\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{dominio}}/ping",
+          "host": [
+            "{{dominio}}"
+          ],
+          "path": [
+            "ping"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Auth-CreateToken",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "//Verificar que el SUT responda con el status code 200\r",
+              "pm.test('El SUT responde correctamente al crear un token (Status 200)', function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "//Verificar que el cuerpo de la respuesta contenga un token\r",
+              "pm.test('El cuerpo de la respuesta contiene un token', function () {\r",
+              "    const jsonData = pm.response.json();\r",
+              "    pm.expect(jsonData).to.have.property('token');\r",
+              "\r",
+              "    //Guardar el token en una variable de entorno para su uso posterior\r",
+              "    if (jsonData.token) {\r",
+              "        pm.environment.set('token_auth', jsonData.token);\r",
+              "    }\r",
+              "});\r",
+              "\r",
+              "// Verificar que el token tiene formato valido (no vacio, string, longitud mayor a 12 caracteres)\r",
+              "pm.test('El token es válido', function () {\r",
+              "    const token = pm.environment.get('token_auth');\r",
+              "    pm.expect(token).to.not.be.empty;\r",
+              "    pm.expect(token).to.be.a('string');\r",
+              "    pm.expect(token.length).to.be.greaterThan(12);\r",
+              "});\r",
+              "\r",
+              "// Verificar que el content type es application/json\r",
+              "pm.test('El SUT responde con content type application/json', function () {\r",
+              "    pm.response.to.have.header('Content-Type', 'application/json; charset=utf-8');\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Limpiar token antiguo antes de crear uno nuevo\r",
+              "pm.environment.unset('token_auth');\r",
+              "console.log('Limpiando el token previo...')"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"username\" : \"{{username}}\",\r\n    \"password\" : \"{{password}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{dominio}}/auth",
+          "host": [
+            "{{dominio}}"
+          ],
+          "path": [
+            "auth"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "CreateBooking",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "//Obtener la fecha de hoy para usarla en el CheckIn\r",
+              "const hoy = new Date();\r",
+              "\r",
+              "//Calcular la fecha de hoy + 7 dias para usarla de checkout\r",
+              "const futura = new Date();\r",
+              "futura.setDate(hoy.getDate() + 7);\r",
+              "\r",
+              "//Formatear las fechas para que coincidan con el formato de la API\r",
+              "const checkin = hoy.toISOString().split('T')[0];\r",
+              "const checkout = futura.toISOString().split('T')[0];\r",
+              "\r",
+              "//Guardar las fechas en variables de entorno\r",
+              "pm.environment.set('checkin', checkin);\r",
+              "pm.environment.set('checkout', checkout);\r",
+              "\r",
+              "console.log('Fecha de checkin ' + checkin);\r",
+              "console.log('Fecha de checkout ' + checkout)"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "//Verificar que el SUT responda con el status code 200\r",
+              "pm.test('El SUT responde correctamente al crear un token (Status 200)', function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "//Verificar que el cuerpo de la respuesta contenga un id\r",
+              "pm.test('El cuerpo de la respuesta contiene un id', function () {\r",
+              "    const jsonData = pm.response.json();\r",
+              "    pm.expect(jsonData).to.have.property('bookingid');\r",
+              "\r",
+              "    //Guardar el id en una variable de entorno para su uso posterior\r",
+              "    if (jsonData.bookingid) {\r",
+              "        pm.environment.set('bookingid', jsonData.bookingid);\r",
+              "    }\r",
+              "});\r",
+              "\r",
+              "// Verificar que bookingid sea un numero entero positivo\r",
+              "pm.test('El bookingid es un número entero positivo', function () {\r",
+              "    const bookingid = pm.response.json().bookingid;\r",
+              "    pm.expect(bookingid).to.be.a('number');\r",
+              "    pm.expect(bookingid).to.be.above(0);\r",
+              "});\r",
+              "\r",
+              "// Verificar que los datos devueltos coincidan con los enviados en la solicitud\r",
+              "pm.test('El cuerpo de la respuesta contiene los datos correctos', function () {\r",
+              "    const booking = pm.response.json().booking;\r",
+              "    pm.expect(booking.firstname).to.eql(pm.environment.get('firstname'));\r",
+              "    pm.expect(booking.lastname).to.eql(pm.environment.get('lastname'));\r",
+              "    pm.expect(booking.totalprice).to.eql(parseInt(pm.environment.get('totalprice')));\r",
+              "    pm.expect(booking.depositpaid).to.eql(JSON.parse(pm.environment.get('depositpaid')));\r",
+              "    pm.expect(booking.bookingdates.checkin).to.eql(pm.environment.get('checkin'));\r",
+              "    pm.expect(booking.bookingdates.checkout).to.eql(pm.environment.get('checkout'));\r",
+              "    pm.expect(booking.additionalneeds).to.eql(pm.environment.get('additionalneeds'));\r",
+              "});\r",
+              "\r",
+              "// Verificar que el content type es application/json\r",
+              "pm.test('El SUT responde con content type application/json', function () {\r",
+              "    pm.response.to.have.header('Content-Type', 'application/json; charset=utf-8');\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"firstname\" : \"{{firstname}}\",\r\n    \"lastname\" : \"{{lastname}}\",\r\n    \"totalprice\" : {{totalprice}},\r\n    \"depositpaid\" : {{depositpaid}},\r\n    \"bookingdates\" : {\r\n        \"checkin\" : \"{{checkin}}\",\r\n        \"checkout\" : \"{{checkout}}\"\r\n    },\r\n    \"additionalneeds\" : \"{{additionalneeds}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{dominio}}/booking",
+          "host": [
+            "{{dominio}}"
+          ],
+          "path": [
+            "booking"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GetBooking (id)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "//Verificar que el SUT responda con el status code 200\r",
+              "pm.test('El SUT responde correctamente (Status 200)', function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// Verificar que la respuesta contenga todas las propiedades esperadas\r",
+              "pm.test('El cuerpo de la respuesta contiene todas las propiedades esperadas', function () {\r",
+              "    const jsonData = pm.response.json();\r",
+              "    pm.expect(jsonData).to.have.all.keys('firstname', 'lastname', 'totalprice', 'depositpaid', 'bookingdates', 'additionalneeds');\r",
+              "});\r",
+              "\r",
+              "//verificar que depositpaid es boolean\r",
+              "pm.test(\"El campo 'depositpaid' es un booleano\", function () {\r",
+              "    pm.expect(pm.response.json().depositpaid).to.be.a('boolean');\r",
+              "});\r",
+              "\r",
+              "// Verificar que la estructura de la respuesta contenga todos los valores correctos\r",
+              "pm.test('El cuerpo de la respuesta contiene todos los valores esperados', function () {\r",
+              "    const jsonData = pm.response.json();\r",
+              "    pm.expect(jsonData.firstname).to.eql(pm.environment.get('firstname'));\r",
+              "    pm.expect(jsonData.lastname).to.eql(pm.environment.get('lastname'));\r",
+              "    pm.expect(jsonData.totalprice).to.eql(parseInt(pm.environment.get('totalprice')));\r",
+              "    pm.expect(jsonData.depositpaid).to.eql(JSON.parse(pm.environment.get('depositpaid')));\r",
+              "    pm.expect(jsonData.bookingdates.checkin).to.eql(pm.environment.get('checkin'));\r",
+              "    pm.expect(jsonData.bookingdates.checkout).to.eql(pm.environment.get('checkout'));\r",
+              "    pm.expect(jsonData.additionalneeds).to.eql(pm.environment.get('additionalneeds'));\r",
+              "});\r",
+              "\r",
+              "// Verificar que los tipos de datos sean los esperados para cada campo\r",
+              "pm.test('Los tipos de datos de los campos son correctos', function () {\r",
+              "    const jsonData = pm.response.json();\r",
+              "    pm.expect(typeof jsonData.firstname).to.eql('string');\r",
+              "    pm.expect(typeof jsonData.lastname).to.eql('string');\r",
+              "    pm.expect(typeof jsonData.totalprice).to.eql('number');\r",
+              "    pm.expect(typeof jsonData.depositpaid).to.eql('boolean');\r",
+              "    pm.expect(typeof jsonData.bookingdates.checkin).to.eql('string');\r",
+              "    pm.expect(typeof jsonData.bookingdates.checkout).to.eql('string');\r",
+              "    pm.expect(typeof jsonData.additionalneeds).to.eql('string');\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },
+        "url": {
+          "raw": "{{dominio}}/booking/{{bookingid}}",
+          "host": [
+            "{{dominio}}"
+          ],
+          "path": [
+            "booking",
+            "{{bookingid}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GetBooking (checkin)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "//Calcular la fecha de filtrado\r",
+              "const filtrado = new Date(pm.environment.get('checkin'));\r",
+              "filtrado.setDate(filtrado.getDate() - 1);\r",
+              "\r",
+              "pm.environment.set('checkin_filtrado', filtrado.toISOString().split('T')[0]);"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "//Verificar que el SUT responda con el status code 200\r",
+              "pm.test('El SUT responde correctamente al crear un token (Status 200)', function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// Verificar que la respuesta es un array no un objeto\r",
+              "pm.test('La respuesta es un array', function () {\r",
+              "    const Body = pm.response.json();\r",
+              "    pm.expect(Body).to.be.an('array');\r",
+              "});\r",
+              "\r",
+              "// Verificar que cada elemento del array es un objeto con la propiedad bookingid\r",
+              "pm.test('Cada elemento del array es un objeto con la propiedad bookingid', function () {\r",
+              "    const Body = pm.response.json();\r",
+              "    Body.forEach(function (item) {\r",
+              "        pm.expect(item).to.have.property('bookingid');\r",
+              "    });\r",
+              "});\r",
+              "\r",
+              "//Validar que el bookincode exista entre la lista de ids de la respuesta\r",
+              "pm.test('El bookingid ' + pm.environment.get('bookingid') + ' existe en la lista de bookings', function () {\r",
+              "    const Body = pm.response.json();\r",
+              "    const bookingExists = Body.some(function (item) {\r",
+              "        return item.bookingid === parseInt(pm.environment.get('bookingid'));\r",
+              "    });\r",
+              "    pm.expect(bookingExists).to.be.true;\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {}
+          }
+        }
+      ],
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": ""
+        },
+        "url": {
+          "raw": "{{dominio}}/booking?checkin={{checkin_filtrado}}",
+          "host": [
+            "{{dominio}}"
+          ],
+          "path": [
+            "booking"
+          ],
+          "query": [
+            {
+              "key": "checkin",
+              "value": "{{checkin_filtrado}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
