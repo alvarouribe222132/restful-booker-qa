@@ -34,8 +34,8 @@ jobs:
 
       - name: Ejecutar pruebas de la API
         run: |
-          newman run collections/restful-booker_postman_collection.json \
-            --environment environments/restful-booker_postman_environment.json \
+          newman run collections/restful-booker.postman_collection.json \
+            --environment environments/restful-booker.postman_environment.json \
             --reporters cli,htmlextra \
             --reporter-htmlextra-export reports/reporte-ci.html \
             --reporter-htmlextra-title "Restful-Booker CI Report" \
