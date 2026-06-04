@@ -32,6 +32,9 @@ jobs:
           newman -v
           npm list -g --depth=0
 
+      - name: Crear carpeta de reportes
+        run: mkdir -p reports
+
       - name: Ejecutar pruebas de la API
         run: |
           newman run collections/restful-booker.postman_collection.json \
