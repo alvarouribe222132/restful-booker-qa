@@ -27,6 +27,11 @@ jobs:
           npm install -g newman
           npm install -g newman-reporter-htmlextra
 
+      - name: Verificar instalación
+        run: | 
+          newman -v
+          npm list -g --depth=0
+
       - name: Ejecutar pruebas de la API
         run: |
           newman run collections/restful-booker_postman_collection.json \
@@ -42,3 +47,8 @@ jobs:
         with:
           name: reporte-newman-${{ github.run_number }}
           path: reports/reporte-ci.html
+
+      - name: Verificar reporte generado
+        run: |
+          echo "Contenido de reports:"
+          ls -la reports
